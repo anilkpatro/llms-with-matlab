@@ -56,13 +56,12 @@ arguments
     nvp.APIKey
     nvp.TimeOut
     nvp.StreamFun
+    nvp.EndPoint = "https://api.openai.com/v1/chat/completions"
 end
-
-END_POINT = "https://api.openai.com/v1/chat/completions";
 
 parameters = buildParametersCall(messages, functions, nvp);
 
-[response, streamedText] = llms.internal.sendRequestWrapper(parameters,nvp.APIKey, END_POINT, nvp.TimeOut, nvp.StreamFun);
+[response, streamedText] = llms.internal.sendRequestWrapper(parameters,nvp.APIKey, nvp.EndPoint, nvp.TimeOut, nvp.StreamFun);
 
 % If call errors, "choices" will not be part of response.Body.Data, instead
 % we get response.Body.Data.error
@@ -88,8 +87,10 @@ if response.StatusCode=="OK"
     end
     if isfield(message, "tool_choice")
         text = "";
-    else
+    elseif isfield(message, "content")
         text = string(message.content);
+    else
+        text = "";
     end
 else
     text = "";
