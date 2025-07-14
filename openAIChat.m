@@ -42,10 +42,15 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
 %                             in the output. Default value is 0.
 %                             Higher values reduce repetition of words in the output.
 %
-%   TimeOut                 - Connection Timeout in seconds. Default value is 10.
+%   TimeOut                 - Connection Timeout in seconds. Default value is 120.
 %
 %   StreamFun               - Function to callback when streaming the
 %                             result
+%
+%   EndPoint                - API endpoint URL. Default value is 
+%                             "https://api.openai.com/v1/chat/completions".
+%                             This allows connecting to OpenAI-compatible APIs
+%                             such as LM Studio or other third-party services.
 %
 %   ResponseFormat          - The format of response the model returns.
 %                             "text" (default) | "json" | struct | string with JSON Schema
@@ -79,12 +84,16 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
 %
 %       TimeOut              - Connection Timeout in seconds.
 %
+%       EndPoint             - API endpoint URL.
+%
 
 % Copyright 2023-2025 The MathWorks, Inc.
 
     properties(SetAccess=private)
         %MODELNAME   Model name.
         ModelName
+        %ENDPOINT    API endpoint URL.
+        EndPoint
     end
 
     properties (Hidden)
@@ -97,7 +106,7 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
             arguments
                 systemPrompt                       {llms.utils.mustBeTextOrEmpty} = []
                 nvp.Tools                    (1,:) {mustBeA(nvp.Tools, "openAIFunction")} = openAIFunction.empty
-                nvp.ModelName                (1,1) string {mustBeModel} = "gpt-4o-mini"
+                nvp.ModelName                (1,1) string = "gpt-4o-mini"
                 nvp.Temperature                    {llms.utils.mustBeValidTemperature} = 1
                 nvp.TopP                           {llms.utils.mustBeValidProbability} = 1
                 nvp.StopSequences                  {llms.utils.mustBeValidStop} = {}
@@ -105,8 +114,9 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
                 nvp.APIKey                         {llms.utils.mustBeNonzeroLengthTextScalar}
                 nvp.PresencePenalty                {llms.utils.mustBeValidPenalty} = 0
                 nvp.FrequencyPenalty               {llms.utils.mustBeValidPenalty} = 0
-                nvp.TimeOut                  (1,1) {mustBeNumeric,mustBeReal,mustBePositive} = 10
+                nvp.TimeOut                  (1,1) {mustBeNumeric,mustBeReal,mustBePositive} = 120
                 nvp.StreamFun                (1,1) {mustBeA(nvp.StreamFun,'function_handle')}
+                nvp.EndPoint                 (1,1) string = "https://api.openai.com/v1/chat/completions"
             end
 
             if isfield(nvp,"StreamFun")
@@ -131,13 +141,19 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
                 end
             end
 
+            this.EndPoint = nvp.EndPoint;
+            
+            % Validate model name only for OpenAI endpoints
+            if contains(this.EndPoint, "api.openai.com")
+                mustBeModel(nvp.ModelName);
+                % ResponseFormat is only supported in the latest models only
+                llms.openai.validateResponseFormat(nvp.ResponseFormat, nvp.ModelName);
+            end
+            
             this.ModelName = nvp.ModelName;
             this.Temperature = nvp.Temperature;
             this.TopP = nvp.TopP;
             this.StopSequences = nvp.StopSequences;
-
-            % ResponseFormat is only supported in the latest models only
-            llms.openai.validateResponseFormat(nvp.ResponseFormat, this.ModelName);
             this.ResponseFormat = nvp.ResponseFormat;
 
             this.PresencePenalty = nvp.PresencePenalty;
@@ -214,7 +230,7 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
             arguments
                 this                    (1,1) openAIChat
                 messages                      {mustBeValidMsgs}
-                nvp.ModelName           (1,1) string {mustBeModel} = this.ModelName
+                nvp.ModelName           (1,1) string = this.ModelName
                 nvp.Temperature               {llms.utils.mustBeValidTemperature} = this.Temperature
                 nvp.TopP                      {llms.utils.mustBeValidProbability} = this.TopP
                 nvp.StopSequences             {llms.utils.mustBeValidStop} = this.StopSequences
@@ -230,6 +246,11 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
                 nvp.Seed                      {mustBeIntegerOrEmpty(nvp.Seed)} = []
             end
 
+            % Validate model name only for OpenAI endpoints
+            if contains(this.EndPoint, "api.openai.com")
+                mustBeModel(nvp.ModelName);
+            end
+
             toolChoice = convertToolChoice(this, nvp.ToolChoice);
 
             messages = convertCharsToStrings(messages);
@@ -239,12 +260,19 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
                 messagesStruct = this.encodeImages(messages.Messages);
             end
 
-            llms.openai.validateMessageSupported(messagesStruct{end}, nvp.ModelName);
+            % OpenAI-specific validations only for OpenAI endpoints
+            if contains(this.EndPoint, "api.openai.com")
+                llms.openai.validateMessageSupported(messagesStruct{end}, nvp.ModelName);
+            end
+            
             if ~isempty(this.SystemPrompt)
                 messagesStruct = horzcat(this.SystemPrompt, messagesStruct);
             end
 
-            llms.openai.validateResponseFormat(nvp.ResponseFormat, nvp.ModelName, messagesStruct);
+            % OpenAI-specific validations only for OpenAI endpoints
+            if contains(this.EndPoint, "api.openai.com")
+                llms.openai.validateResponseFormat(nvp.ResponseFormat, nvp.ModelName, messagesStruct);
+            end
 
             if isfield(nvp,"StreamFun")
                 streamFun = nvp.StreamFun;
@@ -260,7 +288,8 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
                     PresencePenalty=nvp.PresencePenalty, FrequencyPenalty=nvp.FrequencyPenalty, ...
                     ResponseFormat=nvp.ResponseFormat,Seed=nvp.Seed, ...
                     APIKey=nvp.APIKey,TimeOut=nvp.TimeOut, StreamFun=streamFun, ...
-                    sendRequestFcn=this.sendRequestFcn);
+                    sendRequestFcn=this.sendRequestFcn, ...
+                    EndPoint=this.EndPoint);
             catch e
                 throw(e);
             end

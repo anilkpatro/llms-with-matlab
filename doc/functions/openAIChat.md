@@ -152,13 +152,23 @@ The frequency penalty increases with every instance of a token in the generated 
 
 ### `TimeOut` — Connection timeout in seconds
 
-`10` (default) | nonnegative numeric scalar
+`120` (default) | nonnegative numeric scalar
 
 
 After construction, this property is read\-only.
 
 
 If the OpenAI server does not respond within the timeout, then the function throws an error.
+
+### `EndPoint` — API endpoint URL
+
+`"https://api.openai.com/v1/chat/completions"` (default) | string scalar
+
+
+After construction, this property is read\-only.
+
+
+The URL of the API endpoint to use for chat completions. This allows connecting to OpenAI-compatible APIs such as LM Studio or other third-party services.
 
 ### `ResponseFormat` — Response format
 
@@ -263,12 +273,13 @@ model =
          Temperature: 1
                 TopP: 1
        StopSequences: [0x0 string]
-             TimeOut: 10
+             TimeOut: 120
         SystemPrompt: {[1x1 struct]}
       ResponseFormat: "text"
      PresencePenalty: 0
     FrequencyPenalty: 0
        FunctionNames: []
+            EndPoint: "https://api.openai.com/v1/chat/completions"
 
 ```
 
