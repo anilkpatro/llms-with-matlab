@@ -42,10 +42,15 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
 %                             in the output. Default value is 0.
 %                             Higher values reduce repetition of words in the output.
 %
-%   TimeOut                 - Connection Timeout in seconds. Default value is 10.
+%   TimeOut                 - Connection Timeout in seconds. Default value is 120.
 %
 %   StreamFun               - Function to callback when streaming the
 %                             result
+%
+%   EndPoint                - API endpoint URL. Default value is 
+%                             "https://api.openai.com/v1/chat/completions".
+%                             This allows connecting to OpenAI-compatible APIs
+%                             such as LM Studio or other third-party services.
 %
 %   ResponseFormat          - The format of response the model returns.
 %                             "text" (default) | "json" | struct | string with JSON Schema
@@ -78,6 +83,8 @@ classdef(Sealed) openAIChat < llms.internal.textGenerator & ...
 %                              "text" | "json" | struct | string with JSON Schema
 %
 %       TimeOut              - Connection Timeout in seconds.
+%
+%       EndPoint             - API endpoint URL.
 %
 
 % Copyright 2023-2025 The MathWorks, Inc.
