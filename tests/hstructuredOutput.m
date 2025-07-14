@@ -1,14 +1,19 @@
-classdef (Abstract) hstructuredOutput < matlab.unittest.TestCase
+classdef (Abstract) hstructuredOutput < matlab.mock.TestCase
 % Tests for completion APIs providing structured output
 
 %   Copyright 2023-2025 The MathWorks, Inc.
 
     properties(Abstract)
+        constructor
         structuredModel
     end
     
     methods(Test)
-        % Test methods
+        function constructWithStructuredOutput(testCase)
+            responseFormat = struct("llmReply","This is an example struct");
+            testCase.verifyWarningFree(@() testCase.constructor(ResponseFormat=responseFormat));
+        end
+
         function generateWithStructuredOutput(testCase)
             import matlab.unittest.constraints.ContainsSubstring
             import matlab.unittest.constraints.StartsWithSubstring

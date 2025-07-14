@@ -16,6 +16,7 @@ classdef tazureChat < hopenAIChat
         defaultModel = azureChat;
         visionModel = azureChat(Deployment="gpt-4o");
         structuredModel = azureChat("Deployment","gpt-4o-2024-08-06");
+        gpt35Model = azureChat(DeploymentID="gpt-35-turbo-16k-0613");
     end
 
     methods(Test)
@@ -46,6 +47,32 @@ classdef tazureChat < hopenAIChat
             response = testCase.verifyWarningFree(@() generate(chat,"Hi"));
             testCase.verifyClass(response,'string');
             testCase.verifyGreaterThan(strlength(response),0);
+        end
+
+        function sendsSystemPrompt(testCase)
+            import matlab.unittest.constraints.HasField
+            [sendRequestMock,sendRequestBehaviour] = ...
+                createMock(testCase, AddedMethods="sendRequest");
+            testCase.assignOutputsWhen( ...
+                withAnyInputs(sendRequestBehaviour.sendRequest),...
+                iResponseMessage("Hello"),"This output is unused with Stream=false");
+
+            chat = testCase.constructor("You are a helpful assistant");
+            chat.sendRequestFcn = @(varargin) sendRequestMock.sendRequest(varargin{:});
+
+            response = testCase.verifyWarningFree(@() generate(chat,"Hi"));
+
+            calls = testCase.getMockHistory(sendRequestMock);
+
+            testCase.verifySize(calls,[1,1]);
+            sentHistory = calls.Inputs{2};
+            testCase.verifyThat(sentHistory,HasField("messages"));
+            testCase.verifyEqual(sentHistory.messages, ...
+                { ...
+                    struct(role="system",content="You are a helpful assistant"),...
+                    struct(role="user",content="Hi") ...
+                });
+            testCase.verifyEqual(response,"Hello");
         end
 
         function generateMultipleResponses(testCase)
@@ -501,4 +528,15 @@ end
 
 function apiVersions = iGetAPIVersions()
 apiVersions = cellstr(llms.azure.apiVersions);
+end
+
+function msg = iResponseMessage(txt)
+% minimal structure replacing the real matlab.net.http.ResponseMessage() in our mocks
+msg = struct(...
+    StatusCode="OK",...
+    Body=struct(...
+        Data=struct(...
+            choices=struct(...
+                message=struct(...
+                    content=txt)))));
 end

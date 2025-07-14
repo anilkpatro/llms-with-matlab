@@ -78,6 +78,11 @@ classdef (Sealed) ollamaChat < llms.internal.textGenerator & ...
         TailFreeSamplingZ (1,1) {mustBeNumeric,mustBeReal} = 1
     end
 
+    properties (Hidden)
+        % test seam
+        sendRequestFcn = @llms.internal.sendRequestWrapper
+    end
+
     methods
         function this = ollamaChat(modelName, systemPrompt, nvp)
             arguments
@@ -89,7 +94,7 @@ classdef (Sealed) ollamaChat < llms.internal.textGenerator & ...
                 nvp.MinP                           {llms.utils.mustBeValidProbability} = 0
                 nvp.TopK                     (1,1) {mustBeReal,mustBePositive} = Inf
                 nvp.StopSequences                  {llms.utils.mustBeValidStop} = {}
-                nvp.ResponseFormat           (1,1) string {mustBeMember(nvp.ResponseFormat,["text","json"])} = "text"
+                nvp.ResponseFormat                 {llms.utils.mustBeResponseFormat} = "text"
                 nvp.TimeOut                  (1,1) {mustBeNumeric,mustBeReal,mustBePositive} = 120
                 nvp.TailFreeSamplingZ        (1,1) {mustBeNumeric,mustBeReal} = 1
                 nvp.StreamFun                (1,1) {mustBeA(nvp.StreamFun,'function_handle')}
@@ -245,7 +250,7 @@ classdef (Sealed) ollamaChat < llms.internal.textGenerator & ...
                     StopSequences=nvp.StopSequences, MaxNumTokens=nvp.MaxNumTokens, ...
                     ResponseFormat=nvp.ResponseFormat,Seed=nvp.Seed, ...
                     TimeOut=nvp.TimeOut, StreamFun=streamFun, ...
-                    Endpoint=nvp.Endpoint);
+                    Endpoint=nvp.Endpoint, sendRequestFcn=this.sendRequestFcn);
             catch e
                 if e.identifier == "MATLAB:webservices:ConnectionRefused"
                     error("llms:noOllamaFound",llms.utils.errorMessageCatalog.getMessage("llms:noOllamaFound",nvp.Endpoint));

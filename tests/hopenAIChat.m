@@ -17,6 +17,7 @@ classdef (Abstract) hopenAIChat < hstructuredOutput & htoolCalls
         constructor
         defaultModel
         visionModel
+        gpt35Model
     end
     
     methods(Test)
@@ -126,7 +127,7 @@ classdef (Abstract) hopenAIChat < hstructuredOutput & htoolCalls
             % This input is considerably longer than accepted as input for
             % GPT-3.5 (16385 tokens)
             wayTooLong = string(repmat('a ',1,20000));
-            testCase.verifyError(@() generate(testCase.defaultModel,wayTooLong), "llms:apiReturnedError");
+            testCase.verifyError(@() generate(testCase.gpt35Model,wayTooLong), "llms:apiReturnedError");
         end
 
         function createChatWithStreamFunc(testCase)
@@ -170,6 +171,24 @@ classdef (Abstract) hopenAIChat < hstructuredOutput & htoolCalls
             testCase.applyFixture(EnvironmentVariableFixture("AZURE_OPENAI_API_KEY","dummy"));
             unsetenv("AZURE_OPENAI_API_KEY");
             testCase.verifyError(testCase.constructor, "llms:keyMustBeSpecified");
+        end
+
+        function toolCallingAndStructuredOutput(testCase)
+            import matlab.unittest.constraints.HasField
+
+            f = openAIFunction("addTwoNumbers", "Add two numbers");
+            f = addParameter(f, "a");
+            f = addParameter(f, "b");
+
+            responseFormat = struct("llmReply", "The LLM returns a struct if no tool is called");
+            
+            chat = testCase.constructor("You are a helpful agent.", ...
+                Tools=f, ResponseFormat=responseFormat);
+            prompt = "What's 1+1?";
+            
+            [reply, complete] = testCase.verifyWarningFree(@() generate(chat, prompt));
+            testCase.verifyEmpty(reply);
+            testCase.verifyThat(complete, HasField("tool_calls"));
         end
     end
 end
